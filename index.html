@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Sunburn — A Solstice Game</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0a0a14;
+            touch-action: none;
+        }
+
+        #wrap {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .screen {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: #fff;
+            padding: 8vw;
+            gap: 1.1rem;
+            z-index: 10;
+            transition: opacity .4s;
+        }
+
+        .screen h1 {
+            font-size: clamp(2.6rem, 11vw, 5.5rem);
+            font-weight: 700;
+            line-height: .95;
+            color: #fff;
+            text-shadow: 0 4px 0 #d9742a, 0 0 40px rgba(255,200,90,.5);
+        }
+
+        .screen p {
+            font-size: clamp(1rem, 4vw, 1.3rem);
+            font-weight: 500;
+            max-width: 32ch;
+            line-height: 1.5;
+            opacity: .95;
+        }
+
+        .btn {
+            margin-top: .8rem;
+            background: #ffd24a;
+            color: #7a3d00;
+            border: none;
+            font-family: inherit;
+            font-weight: 700;
+            font-size: clamp(1.1rem, 4.5vw, 1.5rem);
+            padding: .85em 2.2em;
+            border-radius: 999px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #d9742a, 0 10px 24px rgba(0,0,0,.35);
+            transition: transform .08s, box-shadow .08s;
+        }
+
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #d9742a, 0 6px 14px rgba(0,0,0,.35);
+        }
+
+        .hint {
+            font-size: .92rem;
+            opacity: .8;
+            margin-top: .3rem;
+            font-weight: 500;
+            line-height: 1.7;
+        }
+
+        .gone { display: none !important; }
+
+        .big {
+            font-size: clamp(3rem, 16vw, 7rem);
+            font-weight: 700;
+            color: #ffd24a;
+            text-shadow: 0 4px 0 #d9742a;
+        }
+
+        #tribute {
+            font-style: italic;
+            opacity: .92;
+            max-width: 34ch;
+            font-size: clamp(.95rem, 3.6vw, 1.15rem);
+            line-height: 1.6;
+        }
+
+        #tribute b {
+            color: #ffd24a;
+            font-style: normal;
+            font-weight: 600;
+        }
+
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 5;
+            padding: max(3vh, 14px) 5vw 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            color: #fff;
+            font-weight: 600;
+            pointer-events: none;
+            text-shadow: 0 2px 6px rgba(0,0,0,.4);
+        }
+
+        #hud .lbl {
+            font-size: .78rem;
+            opacity: .85;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+        }
+
+        #hud .val {
+            font-size: clamp(1.4rem, 6vw, 2rem);
+            line-height: 1;
+        }
+
+        #score-val { color: #ffd24a; }
+
+        #sunbar-wrap {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            background: rgba(255,255,255,.15);
+            z-index: 5;
+        }
+
+        #sunbar {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #ffd24a, #ff8a3c);
+            transition: width .2s linear;
+        }
+
+        #mute {
+            position: absolute;
+            top: max(3vh, 14px);
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 6;
+            background: rgba(0,0,0,.25);
+            border: none;
+            color: #fff;
+            font-size: 1.2rem;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            cursor: pointer;
+            opacity: .7;
+        }
+
+        #mute:hover { opacity: 1; }
+    </style>
+</head>
+<body>
+<div id="wrap">
+    <canvas id="c"></canvas>
+
+    <div id="hud" class="gone">
+        <div>
+            <div class="lbl">Sun caught</div>
+            <div class="val" id="score-val">0</div>
+        </div>
+        <div style="text-align:right">
+            <div class="lbl">Time left</div>
+            <div class="val" id="time-val">45</div>
+        </div>
+    </div>
+
+    <button id="mute" class="gone" title="Mute">🔊</button>
+    <div id="sunbar-wrap" class="gone"><div id="sunbar"></div></div>
+
+    <div class="screen" id="start">
+        <h1>Sunburn</h1>
+        <p>It's the summer solstice — the longest day of the year. Catch the sunlight before the sun sets!</p>
+        <button class="btn" id="play-btn">Play</button>
+        <p class="hint">
+            Move: mouse, touch, or ← → keys<br>
+            ☀️ catch suns &nbsp;·&nbsp; ☁️ dodge clouds<br>
+            🔆 catch glowing code orbs for a bonus
+        </p>
+    </div>
+
+    <div class="screen gone" id="end">
+        <p style="opacity:.9">The sun has set on the longest day.</p>
+        <div class="big" id="final-score">0</div>
+        <p id="rank">☀️</p>
+        <p id="tribute"></p>
+        <button class="btn" id="again-btn">Play again</button>
+    </div>
+</div>
+
+<script>
+    const TAU = Math.PI * 2;
+
+    const GAME_TIME   = 45;
+    const SPAWN_START = 0.9;    // seconds between spawns at game start
+    const SPAWN_FLOOR = 0.42;   // minimum spawn interval
+    const SPAWN_RAMP  = 0.011;  // interval shrinks by this much per elapsed second
+
+    const RANKS = [
+        { min: 55, label: '☀️☀️☀️ Solstice champion!' },
+        { min: 32, label: '☀️☀️ Bright — a truly sunny day.' },
+        { min: 15, label: '☀️ Warm and pleasant.' },
+        { min:  0, label: '🌤️ A bit cloudy — try again?' },
+    ];
+
+    // Sky colour endpoints: dawn (prog=0) → dusk (prog=1)
+    const SKY_TOP_A = { r: 90,  g: 150, b: 220 };
+    const SKY_TOP_B = { r: 50,  g:  60, b: 100 };
+    const SKY_BOT_A = { r: 255, g: 170, b:  90 };
+    const SKY_BOT_B = { r: 215, g: 110, b: 100 };
+
+    // DOM refs — queried once, reused everywhere
+    const cv          = document.getElementById('c');
+    const ctx         = cv.getContext('2d');
+    const scoreEl     = document.getElementById('score-val');
+    const timeEl      = document.getElementById('time-val');
+    const sunbarEl    = document.getElementById('sunbar');
+    const hudEl       = document.getElementById('hud');
+    const muteBtn     = document.getElementById('mute');
+    const sunbarWrap  = document.getElementById('sunbar-wrap');
+    const startScreen = document.getElementById('start');
+    const endScreen   = document.getElementById('end');
+    const finalScoreEl = document.getElementById('final-score');
+    const rankEl      = document.getElementById('rank');
+    const tributeEl   = document.getElementById('tribute');
+
+    // Canvas / viewport
+    let W, H, DPR;
+    const basket = { x: 0, y: 0, w: 96, h: 46 };
+
+    function resize() {
+        DPR = Math.min(window.devicePixelRatio || 1, 2);
+        W = window.innerWidth;
+        H = window.innerHeight;
+        cv.width  = W * DPR;
+        cv.height = H * DPR;
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        basket.y = H - 90;
+    }
+    addEventListener('resize', resize);
+    resize();
+
+    // Audio (Web Audio, no files)
+    let actx = null, muted = false;
+
+    function ensureAudio() {
+        if (!actx) {
+            try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+        }
+        if (actx && actx.state === 'suspended') actx.resume();
+    }
+
+    function tone(freq, dur, type = 'sine', vol = 0.25, slideTo = null) {
+        if (!actx || muted) return;
+        const o = actx.createOscillator();
+        const g = actx.createGain();
+        o.type = type;
+        o.frequency.value = freq;
+        if (slideTo) o.frequency.linearRampToValueAtTime(slideTo, actx.currentTime + dur);
+        g.gain.setValueAtTime(0, actx.currentTime);
+        g.gain.linearRampToValueAtTime(vol, actx.currentTime + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+        o.connect(g).connect(actx.destination);
+        o.start();
+        o.stop(actx.currentTime + dur + 0.02);
+    }
+
+    function sndSun() {
+        tone(880, 0.18, 'triangle', 0.22);
+        setTimeout(() => tone(1320, 0.22, 'triangle', 0.18), 60);
+    }
+    function sndCloud()  { tone(150, 0.22, 'sawtooth', 0.18, 70); }
+    function sndCipher() { [660, 990, 1320, 1760].forEach((f, i) => setTimeout(() => tone(f, 0.16, 'sine', 0.16), i * 55)); }
+    function sndSunset() {
+        tone(440, 1.2, 'sine', 0.2, 220);
+        setTimeout(() => tone(330, 1.4, 'sine', 0.16, 165), 200);
+    }
+
+    muteBtn.onclick = () => {
+        muted = !muted;
+        muteBtn.textContent = muted ? '🔇' : '🔊';
+    };
+
+    // Cipher / Turing tribute
+    // Short words encoded with a Caesar shift; collecting them assembles a closing tribute.
+    const CODE_WORDS = ['THINK', 'ENIGMA', 'CODE', 'FREE', 'LIGHT', 'TRUE', 'DAWN', 'HOPE'];
+    function caesar(s, k) {
+        return s.replace(/[A-Z]/g, c => String.fromCharCode((c.charCodeAt(0) - 65 + k) % 26 + 65));
+    }
+    let decoded = [];
+
+    // Game state
+    let state = 'start';
+    let score, timeLeft, lastTime, spawnTimer, cipherTimer, sunY;
+    let items = [], pops = [];
+
+    // Input
+    function setBasket(x) {
+        basket.x = Math.max(basket.w / 2, Math.min(W - basket.w / 2, x));
+    }
+    addEventListener('pointermove', e => { if (state === 'play') setBasket(e.clientX); });
+    addEventListener('pointerdown', e => { ensureAudio(); if (state === 'play') setBasket(e.clientX); });
+
+    let keyL = false, keyR = false;
+    addEventListener('keydown', e => { if (e.key === 'ArrowLeft') keyL = true;  if (e.key === 'ArrowRight') keyR = true; });
+    addEventListener('keyup',   e => { if (e.key === 'ArrowLeft') keyL = false; if (e.key === 'ArrowRight') keyR = false; });
+
+    function onPlayBtn() { ensureAudio(); startGame(); }
+    document.getElementById('play-btn').onclick  = onPlayBtn;
+    document.getElementById('again-btn').onclick = onPlayBtn;
+
+    // UI helpers
+    function setHUD(visible) {
+        hudEl.classList.toggle('gone', !visible);
+        muteBtn.classList.toggle('gone', !visible);
+        sunbarWrap.classList.toggle('gone', !visible);
+    }
+
+    function startGame() {
+        score       = 0;
+        timeLeft    = GAME_TIME;
+        items       = [];
+        pops        = [];
+        spawnTimer  = 0;
+        cipherTimer = 6;
+        sunY        = -80;
+        decoded     = [];
+        basket.x    = W / 2;
+
+        startScreen.classList.add('gone');
+        endScreen.classList.add('gone');
+        setHUD(true);
+
+        scoreEl.textContent  = '0';
+        timeEl.textContent   = GAME_TIME;
+        sunbarEl.style.width = '100%';
+
+        state    = 'play';
+        lastTime = performance.now();
+    }
+
+    function endGame() {
+        state = 'end';
+        sndSunset();
+        setHUD(false);
+
+        finalScoreEl.textContent = score;
+        rankEl.textContent = RANKS.find(r => score >= r.min).label;
+
+        if (decoded.length) {
+            tributeEl.innerHTML = 'You decoded: <b>' + decoded.join(' · ') + '</b><br><br>' +
+                'Alan Turing broke codes so that others might live free. On the longest day, his light still reaches us.';
+        } else {
+            tributeEl.innerHTML = 'The glowing orbs held a hidden code — in tribute to <b>Alan Turing</b>, who broke ciphers so others might live free.';
+        }
+
+        endScreen.classList.remove('gone');
+    }
+
+    // Spawning
+    function spawn() {
+        const isCloud = Math.random() < 0.22;
+        const r    = isCloud ? 34 : 22;
+        const ramp = (GAME_TIME - timeLeft) * 2.6;
+        items.push({
+            x:    r + Math.random() * (W - 2 * r),
+            y:    -r - 10,
+            vy:   (isCloud ? 115 : 140) + Math.random() * 70 + ramp,
+            type: isCloud ? 'cloud' : 'sun',
+            r,
+            spin: Math.random() * TAU,
+        });
+    }
+
+    function spawnCipher() {
+        const word  = CODE_WORDS[Math.floor(Math.random() * CODE_WORDS.length)];
+        const shift = 1 + Math.floor(Math.random() * 25);
+        items.push({
+            x:     40 + Math.random() * (W - 80),
+            y:     -40,
+            vy:    120 + Math.random() * 40 + (GAME_TIME - timeLeft) * 1.5,
+            type:  'cipher',
+            r:     26,
+            spin:  0,
+            word,
+            shift,
+            shown: caesar(word, shift),
+        });
+    }
+
+    // Update
+    function update(dt) {
+        const ks = 560 * dt;
+        if (keyL) setBasket(basket.x - ks);
+        if (keyR) setBasket(basket.x + ks);
+
+        timeLeft -= dt;
+        if (timeLeft <= 0) { timeLeft = 0; endGame(); return; }
+
+        timeEl.textContent   = Math.ceil(timeLeft);
+        sunbarEl.style.width = (timeLeft / GAME_TIME * 100) + '%';
+        sunY = -80 + (1 - timeLeft / GAME_TIME) * (H * 0.34);
+
+        spawnTimer -= dt;
+        const interval = Math.max(SPAWN_FLOOR, SPAWN_START - (GAME_TIME - timeLeft) * SPAWN_RAMP);
+        if (spawnTimer <= 0) { spawn(); spawnTimer = interval; }
+
+        cipherTimer -= dt;
+        if (cipherTimer <= 0) { spawnCipher(); cipherTimer = 7 + Math.random() * 4; }
+
+        const by = basket.y;
+        for (const it of items) {
+            it.y   += it.vy * dt;
+            it.spin += dt * 2;
+
+            if (it.y + it.r > by && it.y - it.r < by + basket.h &&
+                Math.abs(it.x - basket.x) < basket.w / 2 + it.r * 0.6 && !it.dead) {
+
+                it.dead = true;
+
+                if (it.type === 'sun') {
+                    score++;
+                    pops.push({ x: it.x, y: by, txt: '+1', life: 1, col: '#ffd24a' });
+                    sndSun();
+                } else if (it.type === 'cloud') {
+                    score = Math.max(0, score - 2);
+                    pops.push({ x: it.x, y: by, txt: '-2', life: 1, col: '#9ad' });
+                    sndCloud();
+                } else {
+                    score += 5;
+                    if (!decoded.includes(it.word)) decoded.push(it.word);
+                    pops.push({ x: it.x, y: by - 10, txt: it.word + '  +5', life: 1.6, col: '#9be8ff' });
+                    sndCipher();
+                }
+
+                scoreEl.textContent = score;
+            }
+        }
+
+        items = items.filter(it => !it.dead && it.y - it.r < H + 50);
+        for (const p of pops) { p.y -= 38 * dt; p.life -= dt * 1.1; }
+        pops = pops.filter(p => p.life > 0);
+    }
+
+    // Draw helpers
+    function lerp(a, b, t) { return Math.round(a + (b - a) * t); }
+
+    function drawBasket() {
+        const { x, y, w, h } = basket;
+        ctx.save();
+
+        const glow = ctx.createRadialGradient(x, y, 4, x, y, 80);
+        glow.addColorStop(0, 'rgba(255,210,74,.35)');
+        glow.addColorStop(1, 'rgba(255,210,74,0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(x - 90, y - 90, 180, 180);
+
+        ctx.fillStyle = '#3a2a52';
+        ctx.beginPath();
+        ctx.moveTo(x - w / 2, y);
+        ctx.quadraticCurveTo(x, y + h * 1.4, x + w / 2, y);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#ffd24a';
+        ctx.fillRect(x - w / 2, y - 6, w, 8);
+        ctx.restore();
+    }
+
+    function drawSun(x, y, r, spin) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(spin);
+        ctx.fillStyle = '#ffcf3a';
+        for (let i = 0; i < 8; i++) { ctx.rotate(Math.PI / 4); ctx.fillRect(-2.5, -(r + 8), 5, 9); }
+        const g = ctx.createRadialGradient(0, 0, 2, 0, 0, r);
+        g.addColorStop(0, '#fff3b0');
+        g.addColorStop(1, '#ffb01f');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, TAU);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function drawCloud(x, y, r) {
+        ctx.save();
+        ctx.fillStyle = '#7d8aa8';
+        ctx.beginPath();
+        ctx.arc(x - r * 0.5, y,         r * 0.6,  0, TAU);
+        ctx.arc(x + r * 0.5, y,         r * 0.6,  0, TAU);
+        ctx.arc(x,            y - r * 0.4, r * 0.7,  0, TAU);
+        ctx.arc(x,            y + r * 0.1, r * 0.75, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = '#5d6a88';
+        ctx.fillRect(x - r, y + r * 0.1, 2 * r, r * 0.5);
+        ctx.restore();
+    }
+
+    function drawCipher(it, now) {
+        const { x, y, r } = it;
+        const pulse = 0.7 + 0.3 * Math.sin(now / 180);
+        ctx.save();
+
+        const g = ctx.createRadialGradient(x, y, 2, x, y, r * 1.8);
+        g.addColorStop(0,   `rgba(155,232,255,${0.9 * pulse})`);
+        g.addColorStop(0.5, `rgba(120,170,255,${0.4 * pulse})`);
+        g.addColorStop(1,   'rgba(120,170,255,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, r * 1.8, 0, TAU);
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(20,28,60,.9)';
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, TAU);
+        ctx.fill();
+
+        ctx.strokeStyle = '#9be8ff';
+        ctx.lineWidth   = 2;
+        ctx.stroke();
+
+        ctx.fillStyle    = '#dff6ff';
+        ctx.font         = '700 13px monospace';
+        ctx.textAlign    = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(it.shown, x, y);
+        ctx.restore();
+    }
+
+    function render(now) {
+        const prog = state === 'end' ? 1 : state === 'play' ? 1 - timeLeft / GAME_TIME : 0;
+
+        const top = `rgb(${lerp(SKY_TOP_A.r, SKY_TOP_B.r, prog)}, ${lerp(SKY_TOP_A.g, SKY_TOP_B.g, prog)}, ${lerp(SKY_TOP_A.b, SKY_TOP_B.b, prog)})`;
+        const bot = `rgb(${lerp(SKY_BOT_A.r, SKY_BOT_B.r, prog)}, ${lerp(SKY_BOT_A.g, SKY_BOT_B.g, prog)}, ${lerp(SKY_BOT_A.b, SKY_BOT_B.b, prog)})`;
+        const bg = ctx.createLinearGradient(0, 0, 0, H);
+        bg.addColorStop(0, top);
+        bg.addColorStop(1, bot);
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, W, H);
+
+        if (state !== 'start') {
+            const sx = W * 0.78, sy = sunY;
+            const sg = ctx.createRadialGradient(sx, sy, 10, sx, sy, 150);
+            sg.addColorStop(0, 'rgba(255,240,180,.9)');
+            sg.addColorStop(1, 'rgba(255,200,90,0)');
+            ctx.fillStyle = sg;
+            ctx.beginPath();
+            ctx.arc(sx, sy, 150, 0, TAU);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255,236,150,.95)';
+            ctx.beginPath();
+            ctx.arc(sx, sy, 46, 0, TAU);
+            ctx.fill();
+        }
+
+        if (state === 'play') {
+            for (const it of items) {
+                if (it.type === 'sun')        drawSun(it.x, it.y, it.r, it.spin);
+                else if (it.type === 'cloud') drawCloud(it.x, it.y, it.r);
+                else                          drawCipher(it, now);
+            }
+            drawBasket();
+
+            ctx.textBaseline = 'alphabetic';
+            ctx.font         = '700 24px Fredoka, sans-serif';
+            ctx.textAlign    = 'center';
+            for (const p of pops) {
+                ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+                ctx.fillStyle   = p.col;
+                ctx.fillText(p.txt, p.x, p.y);
+                ctx.globalAlpha = 1;
+            }
+        }
+    }
+
+    function loop(now) {
+        const dt = Math.min(0.05, (now - lastTime) / 1000) || 0;
+        lastTime = now;
+        if (state === 'play') update(dt);
+        render(now);
+        requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+</script>
+</body>
+</html>
